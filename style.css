@@ -4,10 +4,11 @@ body {
   display: flex;
   align-items: center;
   justify-content: center;
-  background-color: #efefef;
+  background: linear-gradient(to right, #a1c4fd, #c2e9fb);
 }
 
 #game {
-  background-color: #ccc;
-  border: 2px solid #333;
+  background-color: #fefefe;
+  border: 3px solid #333;
+  box-shadow: 0 0 12px rgba(0, 0, 0, 0.3);
 }

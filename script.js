@@ -1,64 +1,78 @@
-let canvas = document.getElementById("game"),
-  ctx = canvas.getContext("2d"),
-  ballRadius = 9,
-  x = canvas.width / (Math.floor(Math.random() * Math.random() * 10) + 3),
-  y = canvas.height - 40,
-  dx = 2,
-  dy = -2;
+let canvas = document.getElementById("game");
+let ctx = canvas.getContext("2d");
 
-let paddleHeight = 12,
-  paddleWidth = 72;
+let ballRadius = 9;
+let x = canvas.width / 2;
+let y = canvas.height - 30;
+let dx = 2;
+let dy = -2;
 
-// Paddle start position
+let paddleHeight = 12;
+let paddleWidth = 72;
 let paddleX = (canvas.width - paddleWidth) / 2;
 
-// Bricks
-let rowCount = 5,
-  columnCount = 9,
-  brickWidth = 54,
-  brickHeight = 18,
-  brickPadding = 12,
-  topOffset = 40,
-  leftOffset = 33,
-  score = 0;
+let rowCount = 5;
+let columnCount = 9;
+let brickWidth = 54;
+let brickHeight = 18;
+let brickPadding = 12;
+let topOffset = 40;
+let leftOffset = 33;
+let score = 0;
 
-// Bricks array
-let bricks = [];
-for (let c = 0; c < columnCount; c++) {
-  bricks[c] = [];
-  for (let r = 0; r < rowCount; r++) {
-    // Set position of bricks
-    bricks[c][r] = { x: 0, y: 0, status: 1 };
+let player = "Player";
+let bestScore = localStorage.getItem("bestScore") || 0;
+
+const hitSound = document.getElementById("hitSound");
+const winSound = document.getElementById("winSound");
+const loseSound = document.getElementById("loseSound");
+
+function setupAudio(audio) {
+  try {
+    audio.volume = 0.6;
+    audio.load();
+  } catch (e) {
+    console.warn("Audio yuklanmadi:", e);
   }
 }
+setupAudio(hitSound);
+setupAudio(winSound);
+setupAudio(loseSound);
 
-// Mouse moving eventListener and function
-document.addEventListener("mousemove", mouseMoveHandler, false);
+let bricks = [];
+function initBricks() {
+  bricks = [];
+  for (let c = 0; c < columnCount; c++) {
+    bricks[c] = [];
+    for (let r = 0; r < rowCount; r++) {
+      bricks[c][r] = { x: 0, y: 0, status: 1 };
+    }
+  }
+}
+initBricks();
 
-// Move paddle with mouse
-function mouseMoveHandler(e) {
-  var relativeX = e.clientX - canvas.offsetLeft;
+document.addEventListener("mousemove", (e) => {
+  let relativeX = e.clientX - canvas.offsetLeft;
   if (relativeX > 0 && relativeX < canvas.width) {
     paddleX = relativeX - paddleWidth / 2;
   }
-}
+});
 
-// Draw paddle
+canvas.addEventListener("touchmove", (e) => {
+  let touchX = e.touches[0].clientX - canvas.offsetLeft;
+  if (touchX > 0 && touchX < canvas.width) {
+    paddleX = touchX - paddleWidth / 2;
+  }
+});
+
 function drawPaddle() {
   ctx.beginPath();
-  ctx.roundRect(
-    paddleX,
-    canvas.height - paddleHeight,
-    paddleWidth,
-    paddleHeight,
-    30
-  );
+  ctx.rect(paddleX, canvas.height - paddleHeight, paddleWidth, paddleHeight);
   ctx.fillStyle = "#333";
   ctx.fill();
   ctx.closePath();
 }
 
-// Draw ball
 function drawBall() {
   ctx.beginPath();
   ctx.arc(x, y, ballRadius, 0, Math.PI * 2);
@@ -67,7 +81,6 @@ function drawBall() {
   ctx.closePath();
 }
 
-// Draw Bricks
 function drawBricks() {
   for (let c = 0; c < columnCount; c++) {
     for (let r = 0; r < rowCount; r++) {
@@ -77,8 +90,8 @@ function drawBricks() {
         bricks[c][r].x = brickX;
         bricks[c][r].y = brickY;
         ctx.beginPath();
-        ctx.roundRect(brickX, brickY, brickWidth, brickHeight, 30);
-        ctx.fillStyle = "#333";
+        ctx.rect(brickX, brickY, brickWidth, brickHeight);
+        ctx.fillStyle = "#444";
         ctx.fill();
         ctx.closePath();
       }
@@ -86,14 +99,12 @@ function drawBricks() {
   }
 }
 
-// Track score
 function trackScore() {
   ctx.font = "bold 16px sans-serif";
   ctx.fillStyle = "#333";
-  ctx.fillText("Score : " + score, 8, 24);
+  ctx.fillText(`${player} — Score: ${score} | Best: ${bestScore}`, 10, 24);
 }
 
-// Check ball hit bricks
 function hitDetection() {
   for (let c = 0; c < columnCount; c++) {
     for (let r = 0; r < rowCount; r++) {
@@ -108,10 +119,23 @@ function hitDetection() {
           dy = -dy;
           b.status = 0;
           score++;
-          // Check win
+          try {
+            hitSound.currentTime = 0;
+            hitSound.play();
+          } catch {}
+          if (score > bestScore) {
+            bestScore = score;
+            localStorage.setItem("bestScore", bestScore);
+          }
           if (score === rowCount * columnCount) {
-            alert("You Win!");
-            document.location.reload();
+            try {
+              winSound.currentTime = 0;
+              winSound.play();
+            } catch {}
+            setTimeout(() => {
+              alert(`${player}, Siz yutdingiz!`);
+              resetGame();
+            }, 100);
           }
         }
       }
@@ -119,8 +143,17 @@ function hitDetection() {
   }
 }
 
-// Main function
-function init() {
+function resetGame() {
+  x = canvas.width / 2;
+  y = canvas.height - 30;
+  dx = 2;
+  dy = -2;
+  paddleX = (canvas.width - paddleWidth) / 2;
+  score = 0;
+  initBricks();
+}
+
+function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   trackScore();
   drawBricks();
@@ -128,33 +161,29 @@ function init() {
   drawPaddle();
   hitDetection();
 
-  // Detect left and right walls
-  if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) {
-    dx = -dx;
-  }
-
-  // Detect top wall
-  if (y + dy < ballRadius) {
-    dy = -dy;
-  } else if (y + dy > canvas.height - ballRadius) {
-    // Detect paddle hits
+  if (x + dx > canvas.width - ballRadius || x + dx < ballRadius) dx = -dx;
+  if (y + dy < ballRadius) dy = -dy;
+  else if (y + dy > canvas.height - ballRadius) {
     if (x > paddleX && x < paddleX + paddleWidth) {
       dy = -dy;
     } else {
-      // If ball don't hit paddle
-      alert("Game Over!");
-      document.location.reload();
+      try {
+        loseSound.currentTime = 0;
+        loseSound.play();
+      } catch {}
+      setTimeout(() => {
+        alert(`${player}, O'yin tugadi!`);
+        resetGame();
+        draw();
+      }, 100);
+      return;
     }
   }
 
-  // Bottom wall
-  if (y + dy > canvas.height - ballRadius || y + dy < ballRadius) {
-    dy = -dy;
-  }
-
-  // Move Ball
   x += dx;
   y += dy;
+
+  requestAnimationFrame(draw);
 }
 
-setInterval(init, 10);
+draw();
